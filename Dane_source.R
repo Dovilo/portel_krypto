@@ -1,4 +1,4 @@
-need<-c("httr","jsonlite","lubridate", "PerformanceAnalytics", "PortfolioAnalytics", "zoo", "plotly", "ROI.plugin.quadprog", "quadprog")
+need<-c("httr","jsonlite","lubridate", "PerformanceAnalytics", "PortfolioAnalytics", "zoo", "plotly", "ROI.plugin.quadprog", "quadprog", "quantmod")
 ins<-installed.packages()[,1]
 (Get<-need[which(is.na(match(need,ins)))])
 if(length(Get)>0){install.packages(Get)}
@@ -14,6 +14,7 @@ library(zoo)
 library(plotly)
 library(ROI.plugin.quadprog)
 library(quadprog)
+library(quantmod)
 
 url <- "https://min-api.cryptocompare.com"
 path1 <- "data/histoday?fsym="
@@ -30,6 +31,17 @@ for(x in 1:length(ticker))
   this.content <- fromJSON(this.raw.content)
   this.content[[4]] <- head(this.content[[4]], -1)
   this.content[[4]]$time <- as.POSIXct(this.content[[4]]$time, origin = "1970-01-01", tz = "GMT")
+  this.content[[4]][this.content[[4]]$volumeto < 1000, 7] <- NA
+  if(is.na(this.content[[4]][nrow(this.content[[4]]), 7]))
+  {
+    i <- 1
+    while(is.na(this.content[[4]][nrow(this.content[[4]])-i, 7]))
+      {
+        i <- i+1
+    }
+    this.content[[4]][nrow(this.content[[4]]), 7] <- this.content[[4]][nrow(this.content[[4]])-i, 7]
+  }
+  this.content[[4]]$close <- na.locf(this.content[[4]]$close, fromLast = TRUE)
   write.csv(this.content[[4]], file = paste("Dane/", ticker[x], ".csv", sep=""), row.names=FALSE)
   this.content[[4]] <- as.xts(this.content[[4]], order.by=this.content[[4]]$time, dateFormat="POSIXct", frequency=NULL, RECLASS=FALSE)
   storage.mode(this.content[[4]]) <- "numeric"
@@ -52,10 +64,9 @@ index <- subset(index, select = keep)
 colnames(index) <- "index"
 z <- merge.xts(z, index)
 
-z <- tail(z, 70)
 returns.data <- CalculateReturns(z)
 returns.data <- tail(returns.data, -1)
-covMat <- cov(returns.data)
+covMat <- cov(returns.data, use = "complete.obs")
 keep <- "index"
 variance.index <- subset(returns.data, select = keep)
 variance.index <- var(variance.index)
@@ -86,11 +97,20 @@ returns <- weights * CAPM
 stdDv.Data <- StdDev(returns.data)
 stdDv.Data <- stdDv.Data[-length(stdDv.Data)]
 weights.std <- stdDv.Data * weights
-corelation.data <- cor(returns.data)
+corelation.data <- cor(returns.data, use = "complete.obs")
 corelation.data <- corelation.data[,-c(ncol(corelation.data))]
 corelation.data <- head(corelation.data, -1)
 weights.cor <-  t(as.matrix(weights.std)) %*% corelation.data
 risk <- weights.cor %*% weights.std
+
+standard_deviation <- as.matrix(stdDv.Data)
+row.names(standard_deviation) <- ticker 
+write.csv(round(beta, 2), file = "beta.csv")
+write.csv(round(corelation.data, 2), file = "correlation.csv")
+write.csv(round(CAPM, 4), file = "capm.csv")
+write.csv(round(stdDv.Data, 4), file = "standard_deviation.csv")
+write.csv(round(weights, 4), file = "wagi.csv")
+write.csv(round(standard_deviation, 4), file = "standard_deviation.csv")
 
 print("ryzyko portfela")
 risk
