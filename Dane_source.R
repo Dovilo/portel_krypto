@@ -68,15 +68,14 @@ returns.data <- CalculateReturns(z)
 returns.data <- tail(returns.data, -1)
 covMat <- cov(returns.data, use = "complete.obs")
 keep <- "index"
-variance.index <- subset(returns.data, select = keep)
-variance.index <- var(variance.index)
+index.returns <- dailyReturn(index, subset = '2016::')
+variance.index <- var(index.returns)
 variance.index <- as.vector(variance.index)
 beta <- covMat/variance.index
 beta <- subset(beta, select = keep)
 beta <- head(beta, -1)
 risk_free <- 1.03^(1/365) -1
 storage.mode(index) <- "numeric"
-index.returns <- dailyReturn(index, subset = '2017::')
 average.returns <- mean(index.returns)
 CAPM <- risk_free + beta*(average.returns - risk_free)
 
