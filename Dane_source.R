@@ -31,17 +31,25 @@ for(x in 1:length(ticker))
   this.content <- fromJSON(this.raw.content)
   this.content[[4]] <- head(this.content[[4]], -1)
   this.content[[4]]$time <- as.POSIXct(this.content[[4]]$time, origin = "1970-01-01", tz = "GMT")
-  this.content[[4]][this.content[[4]]$volumeto < 1000, 7] <- NA
-  if(is.na(this.content[[4]][nrow(this.content[[4]]), 7]))
+  this.content[[4]][this.content[[4]]$volumeto < 1000, "close"] <- NA
+  if(is.na(this.content[[4]][nrow(this.content[[4]]), "close"]))
   {
     i <- 1
-    while(is.na(this.content[[4]][nrow(this.content[[4]])-i, 7]))
-      {
+    while(is.na(this.content[[4]][nrow(this.content[[4]])-i, "close"]))
+    {
         i <- i+1
     }
-    this.content[[4]][nrow(this.content[[4]]), 7] <- this.content[[4]][nrow(this.content[[4]])-i, 7]
+    this.content[[4]][nrow(this.content[[4]]), "close"] <- this.content[[4]][nrow(this.content[[4]])-i, "close"]
   }
   this.content[[4]]$close <- na.locf(this.content[[4]]$close, fromLast = TRUE)
+  for(j in 2:nrow(this.content[[4]]))
+  {
+    if((this.content[[4]][j, "close"]/this.content[[4]][j-1, "close"])>100)
+    {
+      this.content[[4]][j, "close"] <- this.content[[4]][j-1, "close"]
+    }
+  }
+  rm(j)
   write.csv(this.content[[4]], file = paste("Dane/", ticker[x], ".csv", sep=""), row.names=FALSE)
   this.content[[4]] <- as.xts(this.content[[4]], order.by=this.content[[4]]$time, dateFormat="POSIXct", frequency=NULL, RECLASS=FALSE)
   storage.mode(this.content[[4]]) <- "numeric"
@@ -68,14 +76,15 @@ returns.data <- CalculateReturns(z)
 returns.data <- tail(returns.data, -1)
 covMat <- cov(returns.data, use = "complete.obs")
 keep <- "index"
-index.returns <- dailyReturn(index, subset = '2016::')
-variance.index <- var(index.returns)
+variance.index <- subset(returns.data, select = keep)
+variance.index <- var(variance.index)
 variance.index <- as.vector(variance.index)
 beta <- covMat/variance.index
 beta <- subset(beta, select = keep)
 beta <- head(beta, -1)
 risk_free <- 1.03^(1/365) -1
 storage.mode(index) <- "numeric"
+index.returns <- dailyReturn(index, subset = '2016::')
 average.returns <- mean(index.returns)
 CAPM <- risk_free + beta*(average.returns - risk_free)
 
