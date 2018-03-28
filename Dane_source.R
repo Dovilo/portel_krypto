@@ -44,7 +44,7 @@ for(x in 1:length(ticker))
   this.content[[4]]$close <- na.locf(this.content[[4]]$close, fromLast = TRUE)
   for(j in 2:nrow(this.content[[4]]))
   {
-    if((this.content[[4]][j, "close"]/this.content[[4]][j-1, "close"])>100)
+    if((this.content[[4]][j, "close"]/this.content[[4]][j-1, "close"])>100 || (this.content[[4]][j, "close"]/this.content[[4]][j-1, "close"]<0.01))
     {
       this.content[[4]][j, "close"] <- this.content[[4]][j-1, "close"]
     }
